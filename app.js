@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
+const encrypt = require("mongoose-encryption");
 
 const app = express();
 
@@ -12,13 +13,16 @@ app.use(bodyParser.urlencoded({extended: true}));
 mongoose.connect("mongodb://localhost:27017/userDB");
 
 //user schema
-const userSchema = {
+const userSchema = new mongoose.Schema({
     email: {
         type: String,
         require: "Please add a valid email address to proceed"
     },
     password: String
-};
+});
+
+const secret = "Thisisourlittlesecret";
+userSchema.plugin(encrypt, {secret: secret, encryptedFields: ["password"]});
 
 const User = new mongoose.model("User", userSchema);
 
@@ -26,10 +30,27 @@ app.get("/", function(req, res){
     res.render("home");
 })
 
-app.get("/login", function(req, res){
-    
-    res.render("login");
-})
+app.route("/login")
+    .get(function(req, res){
+        res.render("login");
+    })
+
+    .post(function(req, res){
+        const userName = req.body.username;
+        const password = req.body.password;
+
+        User.findOne({email: userName}, function(err, foundUser){
+            if(!foundUser){
+                res.send("Sorry, this email is not registered. Register or Try again.");
+            } else {
+                if(password === foundUser.password){
+                    res.render("secrets");
+                } else {
+                    res.send("Incorrect password. Try again.");
+                }
+            }
+        })
+    });
 
 app.route("/register")
     .get(function(req, res){
@@ -51,7 +72,7 @@ app.route("/register")
             }
         });
         console.log("UN: " + req.body.username + " PW: " + req.body.password);
-    })
+    });
 
 
 app.listen(3000, function(){
