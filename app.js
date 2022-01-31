@@ -38,7 +38,8 @@ const userSchema = new mongoose.Schema ({
         require: "Please add a valid email address to proceed"
     },
     password: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 //plugin to hash and salt passwords and save users to the DB
@@ -137,12 +138,45 @@ app.route("/register")
 
     app.route("/secrets")
         .get(function(req, res){
+            User.find({"secret": {$ne: null}}, function(err, foundUsers){
+                if(err){
+                    console.log(err)
+                } else {
+                    if(foundUsers){
+                        res.render("secrets", {usersWithSecrets: foundUsers});
+                    }
+                }
+            });
+        });
+
+    app.route("/submit")
+        .get(function(req, res){
             if (req.isAuthenticated()){
-                res.render("secrets");
+                res.render("submit");
             } else {
                 res.redirect("/login");
             }
-        });
+        })
+
+        .post(function(req, res){
+            const submittedSecret = req.body.secret;
+            const userID = req.user.id;
+
+            User.findById({_id: userID}, function(err, foundUser){
+                if(foundUser){
+                    User.updateOne({_id: userID}, {secret: submittedSecret}, function(err){
+                        console.log("will add secret to user: " + foundUser.username)
+                        res.redirect("secrets")
+                    })
+                    
+                } else {
+                    res.send(err)
+                    console.log("secret not added")
+                }
+            })
+
+            console.log(req.user);
+        })
 
     app.get("/logout", function(req, res){
         req.logout();
